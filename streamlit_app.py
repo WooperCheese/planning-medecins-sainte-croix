@@ -15,6 +15,13 @@ fichiers du dossier utilisateur ne peuvent pas être supprimés par l'agent qui
 maintient cette appli. pages/3_Generation.py existe donc toujours sur disque
 mais n'apparaît plus nulle part : st.navigation() remplace entièrement la
 détection automatique du dossier pages/.
+
+IMPORTANT : st.navigation(...) doit être appelé AVANT tout st.stop() éventuel
+(y compris celui de l'écran de connexion), sinon Streamlit retombe sur son
+menu automatique (détection du dossier pages/, avec "Generation" inclus et
+des titres sans accents) pour ce run-là. Seul .run() est retardé jusqu'après
+la vérification de connexion — construire l'objet navigation suffit à
+remplacer le menu automatique, l'exécuter est une étape séparée.
 """
 
 import streamlit as st
@@ -35,12 +42,6 @@ except Exception as erreur:
     )
     st.stop()
 
-if "user" not in st.session_state:
-    afficher_login()
-    st.stop()
-
-afficher_sidebar_utilisateur()
-
 
 def page_accueil() -> None:
     st.title("Planning Médecins Assistants — Sainte-Croix")
@@ -57,5 +58,13 @@ pg_medecins = st.Page("pages/1_Medecins_et_Cohortes.py", title="Médecins & Coho
 pg_conges = st.Page("pages/2_Conges.py", title="Congés", icon="🗓️")
 pg_planning = st.Page("pages/4_Planning.py", title="Planning", icon="📋")
 
+# Déclaré AVANT le contrôle de connexion, cf. note ci-dessus : c'est cet appel
+# (et non .run()) qui supprime le menu automatique de Streamlit.
 navigation = st.navigation([pg_accueil, pg_medecins, pg_conges, pg_planning])
+
+if "user" not in st.session_state:
+    afficher_login()
+    st.stop()
+
+afficher_sidebar_utilisateur()
 navigation.run()
