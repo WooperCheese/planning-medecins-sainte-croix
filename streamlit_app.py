@@ -56,6 +56,9 @@ def page_accueil() -> None:
                   "'Mes Congés & Heures' pour déclarer tes indisponibilités et heures supplémentaires.")
     elif role == "admin":
         st.write("Utilise le menu à gauche pour naviguer : Médecins & Cohortes, Congés, Planning.")
+    elif role == "rh":
+        st.write("Utilise le menu à gauche : 'Planning' pour consulter le planning de l'équipe, "
+                  "'Export Paie' pour télécharger les heures du mois au format Excel.")
     else:
         st.info("Aucune interface disponible pour le rôle '{}' pour l'instant.".format(role))
 
@@ -71,6 +74,10 @@ if role_courant == "medecin":
     pg_mon_planning = st.Page("pages/5_Mon_Planning.py", title="Mon Planning", icon="📋")
     pg_mes_conges = st.Page("pages/6_Mes_Conges_Et_Heures.py", title="Mes Congés & Heures", icon="🗓️")
     pages = [pg_accueil, pg_mon_planning, pg_mes_conges, pg_mon_compte]
+elif role_courant == "rh":
+    pg_planning_rh = st.Page("pages/9_Planning_RH.py", title="Planning", icon="📋")
+    pg_export_paie = st.Page("pages/10_Export_Paie.py", title="Export Paie", icon="💰")
+    pages = [pg_accueil, pg_planning_rh, pg_export_paie, pg_mon_compte]
 else:
     # Défaut (rôle admin, ou personne connecté pour l'instant) : pages de gestion.
     pg_medecins = st.Page("pages/1_Medecins_et_Cohortes.py", title="Médecins & Cohortes", icon="🩺")
