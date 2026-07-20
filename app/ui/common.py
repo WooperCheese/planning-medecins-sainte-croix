@@ -32,21 +32,34 @@ from app.auth.auth import authenticate
 # ---------------------------------------------------------------------------
 
 COULEUR_FOND = "#f4f7f9"
-COULEUR_FOND_SIDEBAR = "#eaf1f3"
+# Sidebar bleu nuit foncé avec texte blanc (inversion volontaire par rapport à
+# l'ancien fond clair) : cf. docs/superpowers/specs/2026-07-21-refonte-design-design.md.
+# Contraste très élevé (fond très foncé + texte quasi blanc), plus sûr que
+# l'ancien schéma clair/foncé côté accessibilité.
+COULEUR_FOND_SIDEBAR = "#0F1F3D"
 COULEUR_TEXTE = "#0F172A"  # bleu nuit très foncé, lisibilité maximale
 COULEUR_ACCENT = "#0f6674"  # bleu canard doux (titres)
 COULEUR_BOUTON_FOND = "#1E3A8A"  # bleu nuit
 COULEUR_BOUTON_FOND_HOVER = "#152a63"
 COULEUR_BOUTON_TEXTE = "#FFFFFF"
-COULEUR_SIDEBAR_TEXTE = "#1E293B"
+COULEUR_SIDEBAR_TEXTE = "#F8FAFC"  # quasi blanc, lisible sur le fond sidebar foncé
 COULEUR_DANGER = "#dc2626"
 COULEUR_DANGER_HOVER = "#b91c1c"
 
+# Police Inter (Google Fonts) avec fallback système explicite : si
+# fonts.googleapis.com est bloqué (réseau hospitalier restrictif, hors ligne),
+# le navigateur retombe silencieusement sur -apple-system/BlinkMacSystemFont
+# sans aucune casse visuelle.
+POLICE_CSS = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+
 THEME_CSS = """
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 /* --- Fond et texte général de l'application --- */
 [data-testid="stAppViewContainer"], .stApp {{
     background-color: {fond};
+    font-family: {police};
 }}
 [data-testid="stHeader"] {{
     background-color: transparent;
@@ -55,14 +68,17 @@ THEME_CSS = """
 .stMarkdown, .stMarkdown p, .stMarkdown li,
 [data-testid="stCaptionContainer"], [data-testid="stCaptionContainer"] * {{
     color: {texte} !important;
+    font-family: {police};
 }}
 h1, h2, h3, h4 {{
     color: {accent} !important;
+    font-family: {police};
 }}
 
-/* --- Barre latérale : fond clair + texte foncé bien lisible --- */
+/* --- Barre latérale : fond bleu nuit foncé + texte blanc --- */
 section[data-testid="stSidebar"], [data-testid="stSidebar"] {{
     background-color: {fond_sidebar} !important;
+    font-family: {police};
 }}
 section[data-testid="stSidebar"] p,
 section[data-testid="stSidebar"] span,
@@ -76,7 +92,9 @@ section[data-testid="stSidebar"] .stMarkdown,
     color: {sidebar_texte} !important;
 }}
 [data-testid="stSidebarNavLink"][aria-current="page"] {{
-    color: {accent} !important;
+    color: #ffffff !important;
+    background-color: rgba(255, 255, 255, 0.12);
+    border-radius: 6px;
     font-weight: 700;
 }}
 
@@ -98,6 +116,7 @@ button[kind="tertiary"],
     background-color: {bouton_fond} !important;
     color: {bouton_texte} !important;
     border: 1px solid {bouton_fond} !important;
+    font-family: {police};
 }}
 .stButton button:hover,
 .stFormSubmitButton button:hover,
@@ -113,6 +132,48 @@ button[kind="secondary"]:hover,
 }}
 .stButton button p, .stFormSubmitButton button p, [data-testid^="stBaseButton-"] p {{
     color: {bouton_texte} !important;
+}}
+
+/* --- Bouton(s) dans la sidebar (ex: "Se déconnecter") : le fond navy par
+   défaut se fondrait dans le nouveau fond de sidebar, tout aussi foncé.
+   Bordure teal + fond légèrement éclairci pour rester distinct. --- */
+section[data-testid="stSidebar"] .stButton button {{
+    background-color: rgba(255, 255, 255, 0.06) !important;
+    border: 1px solid {accent} !important;
+    color: #ffffff !important;
+}}
+section[data-testid="stSidebar"] .stButton button:hover {{
+    background-color: {accent} !important;
+    border-color: {accent} !important;
+}}
+
+/* --- Logo / monogramme sidebar --- */
+.sc-logo-bloc {{
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.25rem 0 1.1rem 0;
+}}
+.sc-logo-monogramme {{
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background-color: {accent};
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.85rem;
+    font-family: {police};
+    flex-shrink: 0;
+}}
+.sc-logo-nom {{
+    color: #ffffff;
+    font-weight: 600;
+    font-size: 0.95rem;
+    font-family: {police};
+    line-height: 1.2;
 }}
 
 /* --- Cartes KPI (st.metric) --- */
@@ -138,6 +199,7 @@ button[kind="secondary"]:hover,
     bouton_fond=COULEUR_BOUTON_FOND,
     bouton_fond_hover=COULEUR_BOUTON_FOND_HOVER,
     bouton_texte=COULEUR_BOUTON_TEXTE,
+    police=POLICE_CSS,
 )
 
 
@@ -177,7 +239,24 @@ def injecter_css_bouton_danger(cle_container: str) -> None:
     st.markdown(css, unsafe_allow_html=True)
 
 
+def afficher_logo_sidebar() -> None:
+    """Monogramme "SC" + nom de l'appli, en CSS pur (pas de fichier image —
+    cf. décision actée dans le spec refonte design). Affiché en haut de la
+    sidebar une fois connecté (afficher_sidebar_utilisateur) et sur l'écran
+    de connexion (afficher_login), pour une identité visible dès le login."""
+    st.sidebar.markdown(
+        """
+        <div class="sc-logo-bloc">
+            <div class="sc-logo-monogramme">SC</div>
+            <div class="sc-logo-nom">Planning<br/>Sainte-Croix</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def afficher_login() -> None:
+    afficher_logo_sidebar()
     st.title("Planning Médecins — Connexion")
     with st.form("login_form"):
         username = st.text_input("Identifiant")
@@ -212,6 +291,7 @@ def require_login(roles: Optional[list] = None) -> dict:
 
 
 def afficher_sidebar_utilisateur() -> None:
+    afficher_logo_sidebar()
     user = st.session_state.get("user")
     if user:
         st.sidebar.markdown(f"Connecté : **{user['username']}** ({user['role']})")
