@@ -47,6 +47,18 @@ class StatutAffectation(str, enum.Enum):
     MODIFIE_MANUELLEMENT = "modifie_manuellement"
 
 
+class StatutIndisponibilite(str, enum.Enum):
+    """Workflow de validation pour les congés déclarés par un médecin depuis
+    son portail (cf. app/auth/comptes.py, pages/6_Mes_Conges_Et_Heures.py).
+    Les congés saisis directement par l'admin (pages/2_Conges.py) restent en
+    "validee" dès la création : seule la déclaration en libre-service par un
+    médecin démarre "en_attente"."""
+
+    EN_ATTENTE = "en_attente"
+    VALIDEE = "validee"
+    REFUSEE = "refusee"
+
+
 class Cohorte(Base):
     """Une période de roulement des médecins assistants (cycle Mai-Mai ou Nov-Nov)."""
 
@@ -120,6 +132,11 @@ class Indisponibilite(Base):
     date_fin: Mapped[datetime.date] = mapped_column(Date, nullable=False)
     type: Mapped[str] = mapped_column(String(20), nullable=False)
     commentaire: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # Défaut "validee" : préserve le comportement actuel (saisie admin toujours
+    # actée immédiatement) sans migration de données pour les lignes existantes.
+    statut: Mapped[str] = mapped_column(
+        String(20), default=StatutIndisponibilite.VALIDEE.value, nullable=False
+    )
 
     medecin: Mapped["Medecin"] = relationship(back_populates="indisponibilites")
 

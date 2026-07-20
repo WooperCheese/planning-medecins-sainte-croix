@@ -8,7 +8,8 @@ import datetime
 
 import streamlit as st
 
-from app.db.models import Cohorte, Medecin
+from app.auth.comptes import IdentifiantDejaUtilise, creer_compte_medecin, regenerer_mot_de_passe
+from app.db.models import Cohorte, Medecin, Role, User
 from app.db.session import get_session
 from app.ui.common import afficher_sidebar_utilisateur, injecter_theme, require_login
 
@@ -58,6 +59,47 @@ def dialog_nouveau_medecin(cohorte_options: dict) -> None:
             st.rerun()
 
 
+def _suggestion_identifiant(medecin: Medecin) -> str:
+    return "{}.{}".format(medecin.prenom, medecin.nom).lower().replace(" ", "")
+
+
+@st.dialog("Créer un accès de connexion")
+def dialog_creer_compte(medecin: Medecin) -> None:
+    st.write("Compte pour **{}** (rôle médecin).".format(medecin.nom_complet()))
+    username = st.text_input("Identifiant", value=_suggestion_identifiant(medecin))
+    if st.button("Créer l'accès", type="primary"):
+        if not username:
+            st.error("L'identifiant est obligatoire.")
+        else:
+            try:
+                with get_session() as session:
+                    mot_de_passe = creer_compte_medecin(session, medecin.id, username)
+            except IdentifiantDejaUtilise as erreur:
+                st.error(str(erreur))
+            else:
+                st.success(
+                    "Compte créé. Transmets ces identifiants à {} — le mot de passe ne "
+                    "sera plus jamais affiché après avoir quitté cette fenêtre :".format(
+                        medecin.nom_complet()
+                    )
+                )
+                st.code("Identifiant : {}\nMot de passe : {}".format(username, mot_de_passe))
+
+
+@st.dialog("Régénérer le mot de passe")
+def dialog_regenerer_compte(medecin: Medecin, user: User) -> None:
+    st.write("Compte **{}** de **{}**.".format(user.username, medecin.nom_complet()))
+    st.warning("L'ancien mot de passe cessera immédiatement de fonctionner.")
+    if st.button("Régénérer", type="primary"):
+        with get_session() as session:
+            mot_de_passe = regenerer_mot_de_passe(session, user.id)
+        st.success(
+            "Nouveau mot de passe généré. Transmets-le à {} — il ne sera plus jamais "
+            "affiché après avoir quitté cette fenêtre :".format(medecin.nom_complet())
+        )
+        st.code("Identifiant : {}\nMot de passe : {}".format(user.username, mot_de_passe))
+
+
 st.header("Cohortes")
 if st.button("+ Nouvelle cohorte"):
     dialog_nouvelle_cohorte()
@@ -89,8 +131,11 @@ elif st.button("+ Nouveau médecin"):
 
 with get_session() as session:
     medecins = session.query(Medecin).order_by(Medecin.actif.desc(), Medecin.nom).all()
+    comptes_par_medecin = {
+        u.medecin_id: u for u in session.query(User).filter(User.role == Role.MEDECIN.value).all()
+    }
     for m in medecins:
-        cols = st.columns([3, 2, 2, 2, 2])
+        cols = st.columns([3, 2, 2, 2, 2, 2])
         cols[0].write(m.nom_complet())
         cols[1].write(m.cohorte.label if m.cohorte else "-")
         cols[2].write("{} → {}".format(m.date_arrivee, m.date_depart or "..."))
@@ -100,3 +145,11 @@ with get_session() as session:
                 medecin_db = s2.get(Medecin, m.id)
                 medecin_db.actif = not medecin_db.actif
             st.rerun()
+
+        compte = comptes_par_medecin.get(m.id)
+        if compte is None:
+            if cols[5].button("+ Créer accès", key="creer_compte_{}".format(m.id)):
+                dialog_creer_compte(m)
+        else:
+            if cols[5].button("Régén. mot de passe", key="regen_compte_{}".format(m.id)):
+                dialog_regenerer_compte(m, compte)

@@ -28,7 +28,7 @@ from typing import Dict, List, Optional, Set, Tuple
 from sqlalchemy.orm import Session
 
 from app.config import MEMOIRE_JOURS, POSTES_SECTEURS, get_postes_du_jour
-from app.db.models import Affectation, Indisponibilite, Medecin
+from app.db.models import Affectation, Indisponibilite, Medecin, StatutIndisponibilite
 from app.solver.calendar_ch import est_ferie, jour_semaine_fr
 
 JOURS_WEEKEND = {"samedi", "dimanche"}
@@ -74,7 +74,12 @@ def indisponibilites_par_medecin(
     session: Session, medecins: List[Medecin], premier_jour: datetime.date, dernier_jour: datetime.date
 ) -> Dict[int, set]:
     """Fonction publique (réutilisée par l'UI, ex : vue par médecin de la page
-    Planning, pas seulement par le solveur)."""
+    Planning, pas seulement par le solveur).
+
+    Ne retourne que les indisponibilités validées (statut VALIDEE) : une
+    demande encore en attente d'approbation admin (déclarée par un médecin
+    depuis son portail) ne doit ni bloquer la génération du planning, ni
+    apparaître comme "CONGÉ" dans les vues avant d'être traitée."""
     result: Dict[int, Set[datetime.date]] = {m.id: set() for m in medecins}
     ids = [m.id for m in medecins]
     if not ids:
@@ -82,6 +87,7 @@ def indisponibilites_par_medecin(
     indispos = (
         session.query(Indisponibilite)
         .filter(Indisponibilite.medecin_id.in_(ids))
+        .filter(Indisponibilite.statut == StatutIndisponibilite.VALIDEE.value)
         .filter(Indisponibilite.date_debut <= dernier_jour)
         .filter(Indisponibilite.date_fin >= premier_jour)
         .all()

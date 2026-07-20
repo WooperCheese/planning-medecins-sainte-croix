@@ -54,7 +54,12 @@ configuré. On corrige ça à l'étape suivante.
    DATABASE_URL = "postgresql://user:motdepasse@ep-xxxx.eu-central-1.aws.neon.tech/neondb?sslmode=require"
    ```
 
-3. Sauvegarde. L'app redémarre automatiquement avec le nouveau secret.
+3. Sauvegarde.
+4. **Important :** un simple "rerun" de l'app ne suffit pas à prendre en
+   compte un secret ajouté après le premier démarrage — le module Python qui
+   lit la base reste en mémoire avec son ancienne configuration (SQLite).
+   Force un vrai redémarrage : depuis la liste "My apps", clique sur **⋮** à
+   côté de l'app, puis **"Reboot"**. Attends une minute avant de réessayer.
 
 ## Étape 5 — Initialiser la base (une seule fois)
 
@@ -74,8 +79,17 @@ seule fois dans le terminal, note-le).
 1. Ouvre l'URL de ton app (visible en haut de la page Streamlit Community
    Cloud, du type `https://<nom>.streamlit.app`).
 2. Connecte-toi avec `admin` et le mot de passe défini à l'étape 5.
-3. Change immédiatement ce mot de passe (une fois l'interface de gestion des
-   comptes disponible — en attendant, garde-le en lieu sûr).
+
+Pas encore d'écran "changer le mot de passe" dans l'interface (prévu avec la
+gestion des comptes utilisateurs, pas encore construite). En attendant, pour
+réinitialiser un mot de passe oublié ou en choisir un autre :
+
+```bash
+DATABASE_URL="<ta chaîne Neon>" python -m app.db.reset_password
+```
+
+Demande une nouvelle saisie (deux fois, pour confirmation) et met à jour
+uniquement le compte `admin`.
 
 ## Mises à jour ultérieures
 
@@ -90,6 +104,14 @@ supplémentaire à lancer).
   et que le projet Neon est bien actif (pas en pause).
 - **Écran de connexion qui refuse `admin` / mot de passe** : l'étape 5 a
   probablement été sautée ou a échoué — relance-la.
-- **Toujours en SQLite malgré le secret configuré** : vérifie qu'il n'y a pas
-  de faute de frappe dans le nom de la clé (`DATABASE_URL`, sensible à la
-  casse) dans la page Secrets de Streamlit Cloud.
+- **Toujours en SQLite malgré le secret configuré** : le plus souvent, l'app
+  n'a pas été redémarrée depuis (cf. note "Important" à l'étape 4) — fais un
+  "Reboot" complet depuis la liste "My apps", pas juste un rechargement de
+  page.
+- **"Invalid format: please enter valid TOML"** dans la case Secrets : la case
+  Secrets (sur share.streamlit.io) n'accepte que des lignes `CLE = "valeur"`
+  — n'y colle jamais une commande de terminal entière (ça, ça va dans
+  l'application Terminal de ton Mac, pas dans le navigateur).
+- **`password authentication failed for user 'neondb_owner'`** : la chaîne de
+  connexion copiée contenait encore les astérisques masqués. Sur Neon, clique
+  d'abord sur l'icône "œil" (Show password) avant de copier.

@@ -28,7 +28,7 @@ import os
 from contextlib import contextmanager
 from typing import Optional
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.db.models import Base
@@ -79,9 +79,36 @@ else:
 SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
 
 
+def _colonnes_a_ajouter_si_manquantes():
+    """Colonnes introduites après la création initiale du schéma. create_all()
+    ne modifie JAMAIS une table déjà existante (seulement les tables encore
+    absentes) : sur une base déjà initialisée (ex : Neon en production), ces
+    colonnes doivent être ajoutées explicitement. Format :
+    (table, colonne, définition SQL). Compatible SQLite et PostgreSQL."""
+    return [
+        ("indisponibilites", "statut", "VARCHAR(20) DEFAULT 'validee' NOT NULL"),
+    ]
+
+
+def _appliquer_migrations_legeres() -> None:
+    inspecteur = inspect(engine)
+    tables_existantes = set(inspecteur.get_table_names())
+    for table, colonne, definition in _colonnes_a_ajouter_si_manquantes():
+        if table not in tables_existantes:
+            continue  # table pas encore créée : create_all() lui donnera directement la bonne colonne
+        colonnes_existantes = {c["name"] for c in inspecteur.get_columns(table)}
+        if colonne in colonnes_existantes:
+            continue
+        with engine.begin() as connexion:
+            connexion.execute(text("ALTER TABLE {} ADD COLUMN {} {}".format(table, colonne, definition)))
+
+
 def init_db() -> None:
-    """Crée toutes les tables si elles n'existent pas encore."""
+    """Crée toutes les tables si elles n'existent pas encore, puis applique
+    les migrations légères nécessaires sur les tables déjà existantes (cf.
+    _appliquer_migrations_legeres)."""
     Base.metadata.create_all(engine)
+    _appliquer_migrations_legeres()
 
 
 @contextmanager
