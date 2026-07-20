@@ -65,16 +65,19 @@ pg_accueil = st.Page(page_accueil, title="Accueil", icon="🏠", default=True)
 utilisateur_session = st.session_state.get("user")
 role_courant = utilisateur_session["role"] if utilisateur_session else None
 
+pg_mon_compte = st.Page("pages/7_Mon_Compte.py", title="Mon Compte", icon="🔑")
+
 if role_courant == "medecin":
     pg_mon_planning = st.Page("pages/5_Mon_Planning.py", title="Mon Planning", icon="📋")
     pg_mes_conges = st.Page("pages/6_Mes_Conges_Et_Heures.py", title="Mes Congés & Heures", icon="🗓️")
-    pages = [pg_accueil, pg_mon_planning, pg_mes_conges]
+    pages = [pg_accueil, pg_mon_planning, pg_mes_conges, pg_mon_compte]
 else:
     # Défaut (rôle admin, ou personne connecté pour l'instant) : pages de gestion.
     pg_medecins = st.Page("pages/1_Medecins_et_Cohortes.py", title="Médecins & Cohortes", icon="🩺")
     pg_conges = st.Page("pages/2_Conges.py", title="Congés", icon="🗓️")
     pg_planning = st.Page("pages/4_Planning.py", title="Planning", icon="📋")
-    pages = [pg_accueil, pg_medecins, pg_conges, pg_planning]
+    pg_utilisateurs = st.Page("pages/8_Utilisateurs.py", title="Utilisateurs", icon="👥")
+    pages = [pg_accueil, pg_medecins, pg_conges, pg_planning, pg_utilisateurs, pg_mon_compte]
 
 # Déclaré AVANT le contrôle de connexion, cf. note ci-dessus : c'est cet appel
 # (et non .run()) qui supprime le menu automatique de Streamlit.
